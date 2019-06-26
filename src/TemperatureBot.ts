@@ -2,8 +2,6 @@ import TelegramBot from 'node-telegram-bot-api';
 import {getClient, getMetricsCollection} from './DbClient';
 import {Metric} from './Metric';
 
-const config = require('../config.json');
-
 function sendMessage(bot: TelegramBot, chatId: number, message: string) {
   bot.sendMessage(chatId, message)
     .catch((err) => {
@@ -13,10 +11,19 @@ function sendMessage(bot: TelegramBot, chatId: number, message: string) {
 
 function metricMessage(metric: Metric): string {
   return `
-Measure time: ${new Date(metric.timestamp).toTimeString()}
-Temperature: ${metric.temp}
-Humidity: ${metric.humidity}
+Стукачи настукали следующий расклад:
+* Температура: ${metric.temp.toFixed(2)}
+* Влажность: ${metric.humidity.toFixed(2)}
+Время стука ${new Date(metric.timestamp).toLocaleString('en-US', { timeZone: 'Europe/Kiev' })}
 `;
+}
+
+const subscriptions: Set<number> = new Set<number>();
+
+export function sendToAllSubscribers(bot: TelegramBot, message: string) {
+  subscriptions.forEach((chatId) => {
+    sendMessage(bot, chatId, message);
+  });
 }
 
 export function getBot(token: string, pass: string): TelegramBot {
@@ -25,13 +32,13 @@ export function getBot(token: string, pass: string): TelegramBot {
   });
   const registeredUsers: Set<number> = new Set<number>();
   telegramBot.onText(/\/start/, (message: TelegramBot.Message) => {
-    telegramBot.sendMessage(message.chat.id, 'Enter passphrase please')
+    telegramBot.sendMessage(message.chat.id, 'Чиркони парольчик плиз')
       .then((passMess: TelegramBot.Message) => {
         const listenerId = telegramBot.onReplyToMessage(passMess.chat.id, passMess.message_id, (reply: TelegramBot.Message) => {
           if (reply.text === pass) {
             registeredUsers.add(reply.from!!.id);
             telegramBot.removeReplyListener(listenerId);
-            sendMessage(telegramBot, reply.chat.id, 'Correct pass you can /ask for whether now');
+            sendMessage(telegramBot, reply.chat.id, 'Красава, можно теперь и /ask заюзать');
             return;
           }
           sendMessage(telegramBot, reply.chat.id, 'good try');
@@ -41,6 +48,10 @@ export function getBot(token: string, pass: string): TelegramBot {
         console.error('Bot send message error: ', err);
       });
   });
+  telegramBot.onText(/\/subscribe/, (message: TelegramBot.Message) => {
+    subscriptions.add(message.chat.id);
+    sendMessage(telegramBot, message.chat.id, 'На тему подписался будешь знать');
+  });
   telegramBot.onText(/\/ask/, async (message: TelegramBot.Message) => {
     if (!registeredUsers.has(message.from!!.id)) {
       sendMessage(telegramBot, message.chat.id, 'Reply to passphrase first');
@@ -48,15 +59,17 @@ export function getBot(token: string, pass: string): TelegramBot {
     }
 
     const client = await getClient();
-    const [ metric ] = await getMetricsCollection(client).find<Metric>()
+    const metrics = await getMetricsCollection(client).find<Metric>()
       .sort({ timestamp: -1 })
       .limit(1)
       .toArray();
 
-    sendMessage(telegramBot, message.chat.id, metricMessage(metric));
+    if (metrics.length === 0) {
+      sendMessage(telegramBot, message.chat.id, 'Ниче сказать не могу, стукачи не настукали');
+      return;
+    }
+
+    sendMessage(telegramBot, message.chat.id, metricMessage(metrics[0]));
   });
   return telegramBot;
 }
-
-getBot(config.bot_token, config.bot_auth_token);
-

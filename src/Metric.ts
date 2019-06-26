@@ -6,11 +6,16 @@ export interface Metric {
   humidity: number;
 }
 
+export interface Sample {
+  temp: number;
+  humidity: number;
+}
+
 const numberSchema = {
   type: 'number',
 };
 
-export const metricSchema: Schema = {
+export const sampleSchema: Schema = {
   type: 'object',
   properties: {
     timestamp: numberSchema,
