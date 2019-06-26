@@ -41,7 +41,7 @@ export function getBot(token: string, pass: string): TelegramBot {
             sendMessage(telegramBot, reply.chat.id, 'Красава, можно теперь и /ask заюзать');
             return;
           }
-          sendMessage(telegramBot, reply.chat.id, 'good try');
+          sendMessage(telegramBot, reply.chat.id, 'Не братан так дела не будет, походу ты не наш');
         });
       })
       .catch((err) => {
@@ -49,12 +49,16 @@ export function getBot(token: string, pass: string): TelegramBot {
       });
   });
   telegramBot.onText(/\/subscribe/, (message: TelegramBot.Message) => {
+    if (!registeredUsers.has(message.from!!.id)) {
+      sendMessage(telegramBot, message.chat.id, 'Сначала деньги потом стулья. Сначала пароль потом красота.');
+      return;
+    }
     subscriptions.add(message.chat.id);
     sendMessage(telegramBot, message.chat.id, 'На тему подписался будешь знать');
   });
   telegramBot.onText(/\/ask/, async (message: TelegramBot.Message) => {
     if (!registeredUsers.has(message.from!!.id)) {
-      sendMessage(telegramBot, message.chat.id, 'Reply to passphrase first');
+      sendMessage(telegramBot, message.chat.id, 'Сначала деньги потом стулья. Сначала пароль потом красота.');
       return;
     }
 
