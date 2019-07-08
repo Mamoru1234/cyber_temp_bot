@@ -7,4 +7,4 @@ COPY ./node_modules ./node_modules
 
 EXPOSE 4567
 
-CMD ["node", "build/MetricsServer.js"]
+CMD ["node", "build/Main.js"]

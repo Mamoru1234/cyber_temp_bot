@@ -3,8 +3,14 @@ services:
   mongo:
     image: mongo:4.1.13-bionic
   bot:
-    image: alexeigontarcyber/cyber_bot:0.9.0
+    image: alexeigontarcyber/cyber_bot:0.9.1
     ports:
       - '4567:4567'
     volumes:
       - './config.prod.json:/usr/app/cyber_bot/config.json:ro'
+  cache:
+    image: redis:5.0.5-alpine
+  mqtt:
+    image: eclipse-mosquitto:1.6.3
+    ports:
+      - '2435:1883'

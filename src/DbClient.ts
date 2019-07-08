@@ -1,6 +1,7 @@
 import { MongoClient, Collection } from 'mongodb';
 import {once} from 'lodash';
 import {Metric} from './Metric';
+import {createClient} from 'redis';
 const config = require('../config.json');
 
 export const getClient = once(() => {
@@ -9,5 +10,13 @@ export const getClient = once(() => {
   });
   return client.connect();
 });
+
+export const getRedisClient = () => {
+  return createClient({
+    host: config.redis_host,
+    port: config.redis_port,
+    retry_strategy: () => 1000,
+  });
+};
 
 export const getMetricsCollection = (client: MongoClient): Collection<Metric> => client.db('telemetry').collection('metrics');

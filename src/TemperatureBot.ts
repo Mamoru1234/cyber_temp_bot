@@ -1,13 +1,8 @@
-import TelegramBot from 'node-telegram-bot-api';
-import {getClient, getMetricsCollection} from './DbClient';
+import {getClient, getMetricsCollection, getRedisClient} from './DbClient';
 import {Metric} from './Metric';
-
-function sendMessage(bot: TelegramBot, chatId: number, message: string) {
-  bot.sendMessage(chatId, message)
-    .catch((err) => {
-      console.error('Bot send message error: ', err);
-    });
-}
+import {BotChatMessageHandler, BotChatSession, BotWrapper} from './telegram/BotWrapper';
+import { forEach } from 'lodash';
+import {RedisContextProvider} from './telegram/ContextProvider';
 
 function metricMessage(metric: Metric): string {
   return `
@@ -18,62 +13,63 @@ function metricMessage(metric: Metric): string {
 `;
 }
 
-const subscriptions: Set<number> = new Set<number>();
-
-export function sendToAllSubscribers(bot: TelegramBot, message: string) {
-  subscriptions.forEach((chatId) => {
-    sendMessage(bot, chatId, message);
+export function sendToAllSubscribers(bot: BotWrapper, message: string) {
+  forEach(bot.getSessions(), async (session) => {
+    console.log('Sending to session: ', session.getSessionId());
+    const auth = await session.getValue('auth');
+    if (auth) {
+      console.log('Auth true');
+      session.sendMessageSync(message);
+    }
   });
 }
 
-export function getBot(token: string, pass: string): TelegramBot {
-  const telegramBot = new TelegramBot(token, {
-    polling: true,
-  });
-  const registeredUsers: Set<number> = new Set<number>();
-  telegramBot.onText(/\/start/, (message: TelegramBot.Message) => {
-    telegramBot.sendMessage(message.chat.id, 'Чиркони парольчик плиз')
-      .then((passMess: TelegramBot.Message) => {
-        const listenerId = telegramBot.onReplyToMessage(passMess.chat.id, passMess.message_id, (reply: TelegramBot.Message) => {
-          if (reply.text === pass) {
-            registeredUsers.add(reply.from!!.id);
-            telegramBot.removeReplyListener(listenerId);
-            sendMessage(telegramBot, reply.chat.id, 'Красава, можно теперь и /ask заюзать');
-            return;
-          }
-          sendMessage(telegramBot, reply.chat.id, 'Не братан так дела не будет, походу ты не наш');
-        });
-      })
-      .catch((err) => {
-        console.error('Bot send message error: ', err);
+function showAuthBanner(session: BotChatSession, pass: string) {
+  session.sendMessageSync('Чиркони парольчик плиз');
+  session.registerUnknownHandler((message) => {
+    if (message.text == pass) {
+      session.sendMessageSync('Красава, можно теперь и /ask заюзать');
+      session.setValue('auth', true);
+      session.registerUnknownHandler(() => {
+        session.sendMessageSync('Бро я ток команды умею');
       });
-  });
-  telegramBot.onText(/\/subscribe/, (message: TelegramBot.Message) => {
-    if (!registeredUsers.has(message.from!!.id)) {
-      sendMessage(telegramBot, message.chat.id, 'Сначала деньги потом стулья. Сначала пароль потом красота.');
       return;
     }
-    subscriptions.add(message.chat.id);
-    sendMessage(telegramBot, message.chat.id, 'На тему подписался будешь знать');
+    session.sendMessageSync('Не братан так дела не будет, походу ты не наш');
   });
-  telegramBot.onText(/\/ask/, async (message: TelegramBot.Message) => {
-    if (!registeredUsers.has(message.from!!.id)) {
-      sendMessage(telegramBot, message.chat.id, 'Сначала деньги потом стулья. Сначала пароль потом красота.');
-      return;
-    }
+}
 
-    const client = await getClient();
-    const metrics = await getMetricsCollection(client).find<Metric>()
-      .sort({ timestamp: -1 })
-      .limit(1)
-      .toArray();
-
-    if (metrics.length === 0) {
-      sendMessage(telegramBot, message.chat.id, 'Ниче сказать не могу, стукачи не настукали');
-      return;
-    }
-
-    sendMessage(telegramBot, message.chat.id, metricMessage(metrics[0]));
+export function getBot(token: string, pass: string) {
+  const bot = new BotWrapper(token, getRedisClient());
+  bot.setContextProvider(new RedisContextProvider(getRedisClient()));
+  bot.onNewSession((session) => {
+    session.registerHandler(new BotChatMessageHandler(/\/start/, async () => {
+      const auth = await session.getValue('auth');
+      if (!auth) {
+        session.sendMessageSync('Вечер в хату');
+        showAuthBanner(session, pass);
+        return;
+      }
+      session.sendMessageSync('Даров братан, я не люблю шептать');
+    }));
+    session.registerHandler(new BotChatMessageHandler(/\/ask/, async () => {
+      const auth = await session.getValue('auth');
+      if (!auth) {
+        session.sendMessageSync('Сначала деньги потом стулья. Сначала пароль потом красота.');
+        showAuthBanner(session, pass);
+        return;
+      }
+      const client = await getClient();
+      const metrics = await getMetricsCollection(client).find<Metric>()
+        .sort({ timestamp: -1 })
+        .limit(1)
+        .toArray();
+      if (metrics.length === 0) {
+        session.sendMessageSync('Ниче сказать не могу, стукачи не настукали');
+        return;
+      }
+      session.sendMessageSync(metricMessage(metrics[0]));
+    }));
   });
-  return telegramBot;
+  return bot;
 }
