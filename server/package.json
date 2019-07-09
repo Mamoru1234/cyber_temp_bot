@@ -4,10 +4,10 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "build": "rm -rf build/ && tsc -p .",
-    "image": "docker build -t alexeigontarcyber/cyber_bot:0.9.2 .",
-    "bot": "ts-node src/TemperatureBot.ts",
-    "metrics": "ts-node src/Main.ts"
+    "compile": "rm -rf build/ && tsc -p .",
+    "build": "docker build -t alexeigontarcyber/cyber_bot:0.9.3 .",
+    "push": "docker push alexeigontarcyber/cyber_bot:0.9.3",
+    "start": "ts-node src/Main.ts"
   },
   "keywords": [],
   "author": "",

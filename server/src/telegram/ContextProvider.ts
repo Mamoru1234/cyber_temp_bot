@@ -32,12 +32,7 @@ export class RedisContextProvider implements ContextProvider {
         }
         res(JSON.parse(reply));
       });
-    }).then((context) => {
-      console.log('Session: ');
-      console.log(sessionId);
-      console.log(context);
-      return context;
-    });
+    }).then((context) => context);
   }
 
   saveContext(sessionId: string, context: { [p: string]: any }): void {

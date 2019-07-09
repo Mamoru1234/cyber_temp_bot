@@ -18,7 +18,7 @@ export function sendToAllSubscribers(bot: BotWrapper, message: string) {
     console.log('Sending to session: ', session.getSessionId());
     const auth = await session.getValue('auth');
     if (auth) {
-      console.log('Auth true');
+      console.log(`Auth passed: ${session.getSessionId()}`);
       session.sendMessageSync(message);
     }
   });
