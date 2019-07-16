@@ -3,7 +3,7 @@ services:
   mongo:
     image: mongo:4.1.13-bionic
   bot:
-    image: alexeigontarcyber/cyber_bot:0.9.1
+    image: alexeigontarcyber/cyber_bot:0.9.4
     ports:
       - '4567:4567'
     volumes:

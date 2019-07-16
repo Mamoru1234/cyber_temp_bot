@@ -20,3 +20,4 @@ export const getRedisClient = () => {
 };
 
 export const getMetricsCollection = (client: MongoClient): Collection<Metric> => client.db('telemetry').collection('metrics');
+// mongoexport --db telemetry --collection metrics --type=csv -f deviceId,timestamp,temp,humidity -o metrics.csv
