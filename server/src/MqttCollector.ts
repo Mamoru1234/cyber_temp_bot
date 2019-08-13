@@ -1,7 +1,13 @@
 import mqtt from 'mqtt';
 import {MetricAnalyzer} from './MetricAnalyzer';
 import {Metric} from './Metric';
+import { getClient, getMetricsCollection } from './DbClient';
 const config = require('../config.json');
+
+async function saveToDb(metric: Metric) {
+  const client = await getClient();
+  await getMetricsCollection(client).insertOne(metric);
+}
 
 export const createMqttCollector = (metricAnalyzer: MetricAnalyzer) => {
   const client = mqtt.connect(config.mqtt_url);
@@ -30,5 +36,6 @@ export const createMqttCollector = (metricAnalyzer: MetricAnalyzer) => {
       timestamp: Date.now(),
     };
     await metricAnalyzer.handleMetric(metric);
+    await saveToDb(metric);
   });
 };

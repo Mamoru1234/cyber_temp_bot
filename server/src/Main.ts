@@ -1,11 +1,12 @@
-import {getBot} from './TemperatureBot';
-import {createApp} from './MetricsServer';
-import {MetricAnalyzer} from './MetricAnalyzer';
-import {createMqttCollector} from './MqttCollector';
+import { getBot } from './TemperatureBot';
+// import { createApp } from './MetricsServer';
+import { MetricAnalyzer } from './MetricAnalyzer';
+import { createMqttCollector } from './MqttCollector';
+
 const config = require('../config.json');
 
-const bot = getBot(config.bot_token, config.bot_auth_token);
-const metricsAnalyzer = new MetricAnalyzer(bot);
+const metricsAnalyzer = new MetricAnalyzer();
 
-createApp(metricsAnalyzer);
+getBot(config.bot_token, config.bot_auth_token, metricsAnalyzer);
+// createApp(metricsAnalyzer);
 createMqttCollector(metricsAnalyzer);

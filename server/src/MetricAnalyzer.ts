@@ -1,24 +1,24 @@
 import {Metric} from './Metric';
-import {BotWrapper} from './telegram/BotWrapper';
-import {getClient, getMetricsCollection} from './DbClient';
-import {sendToAllSubscribers} from './TemperatureBot';
 import {MetricQueue} from './MetricQueue';
-import { sumBy } from 'lodash';
+import { sumBy, last } from 'lodash';
+import EventEmitter = NodeJS.EventEmitter;
 
 const config = require('../config.json');
 
 const NOTIFY_PERIOD = 1000 * 60 * 60 * 8;
 
+export interface AnomalyEvent {
+  temp: number;
+}
+
 export class MetricAnalyzer {
+  public static ANOMALY_EVENT = 'ANOMALY_EVENT';
+  public events = new EventEmitter();
+
   private _lastNotification = 0;
   private _metrics = new MetricQueue(120000);
 
-  constructor(private _bot: BotWrapper) {
-  }
-
-  private static async saveToDb(metric: Metric) {
-    const client = await getClient();
-    await getMetricsCollection(client).insertOne(metric);
+  constructor() {
   }
 
   private isAbnormal(): boolean {
@@ -34,8 +34,15 @@ export class MetricAnalyzer {
       return;
     }
     const averageTemp = sumBy(this._metrics.getValues(), 'temp') / this._metrics.getValues().length;
-    sendToAllSubscribers(this._bot, `Адище в офисе: ${averageTemp.toFixed(2)}`);
+    const event: AnomalyEvent = {
+      temp: averageTemp,
+    };
+    this.events.emit(MetricAnalyzer.ANOMALY_EVENT, event);
     this._lastNotification = Date.now();
+  }
+
+  public getLastMetric(): Metric | undefined {
+    return last(this._metrics.getValues());
   }
 
   public async handleMetric(metric: Metric): Promise<void> {
@@ -43,6 +50,5 @@ export class MetricAnalyzer {
     if (this.isAbnormal()) {
       this.notifyUsers();
     }
-    await MetricAnalyzer.saveToDb(metric);
   }
 }

@@ -1,8 +1,9 @@
-import {getClient, getMetricsCollection, getRedisClient} from './DbClient';
-import {Metric} from './Metric';
-import {BotChatMessageHandler, BotChatSession, BotWrapper} from './telegram/BotWrapper';
+import { getRedisClient } from './DbClient';
+import { Metric } from './Metric';
+import { BotChatMessageHandler, BotChatSession, BotWrapper } from './telegram/BotWrapper';
 import { forEach } from 'lodash';
-import {RedisContextProvider} from './telegram/ContextProvider';
+import { RedisContextProvider } from './telegram/ContextProvider';
+import { AnomalyEvent, MetricAnalyzer } from './MetricAnalyzer';
 
 function metricMessage(metric: Metric): string {
   return `
@@ -39,8 +40,11 @@ function showAuthBanner(session: BotChatSession, pass: string) {
   });
 }
 
-export function getBot(token: string, pass: string) {
+export function getBot(token: string, pass: string, metricAnalyzer: MetricAnalyzer) {
   const bot = new BotWrapper(token, getRedisClient());
+  metricAnalyzer.events.on(MetricAnalyzer.ANOMALY_EVENT, (event: AnomalyEvent) => {
+    sendToAllSubscribers(bot, `Адище в офисе: ${event.temp.toFixed(2)}`);
+  });
   bot.setContextProvider(new RedisContextProvider(getRedisClient()));
   bot.onNewSession((session) => {
     session.registerHandler(new BotChatMessageHandler(/\/start/, async () => {
@@ -53,26 +57,18 @@ export function getBot(token: string, pass: string) {
       session.sendMessageSync('Даров братан, я не люблю шептать');
     }));
     session.registerHandler(new BotChatMessageHandler(/\/ask/, async () => {
-      console.log(`Asking bot ${session.getSessionId()}`);
       const auth = await session.getValue('auth');
-      console.log(`Auth: ${session.getSessionId()} ${auth}`);
       if (!auth) {
         session.sendMessageSync('Сначала деньги потом стулья. Сначала пароль потом красота.');
         showAuthBanner(session, pass);
         return;
       }
-      const client = await getClient();
-      console.log(`Client: ${session.getSessionId()}`);
-      const metrics = await getMetricsCollection(client).find<Metric>()
-        .sort({ timestamp: -1 })
-        .limit(1)
-        .toArray();
-      console.log(`Metrics: ${session.getSessionId()} ${JSON.stringify(metrics, null, 2)}`);
-      if (metrics.length === 0) {
+      const metric = metricAnalyzer.getLastMetric();
+      if (!metric) {
         session.sendMessageSync('Ниче сказать не могу, стукачи не настукали');
         return;
       }
-      session.sendMessageSync(metricMessage(metrics[0]));
+      session.sendMessageSync(metricMessage(metric));
     }));
   });
   return bot;
