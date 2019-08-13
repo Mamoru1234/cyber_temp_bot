@@ -5,8 +5,8 @@
   "main": "index.js",
   "scripts": {
     "compile": "rm -rf build/ && tsc -p .",
-    "build": "docker build -t alexeigontarcyber/cyber_bot:0.9.5 .",
-    "push": "docker push alexeigontarcyber/cyber_bot:0.9.5",
+    "build": "npm run test && docker build -t alexeigontarcyber/cyber_bot:0.9.6 .",
+    "push": "docker push alexeigontarcyber/cyber_bot:0.9.6",
     "test": "mocha -r ts-node/register \"src/**/*.spec.ts\"",
     "start": "ts-node src/Main.ts"
   },

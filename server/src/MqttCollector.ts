@@ -2,18 +2,23 @@ import mqtt from 'mqtt';
 import {MetricAnalyzer} from './MetricAnalyzer';
 import {Metric} from './Metric';
 import { getClient, getMetricsCollection } from './DbClient';
-const config = require('../config.json');
 
 async function saveToDb(metric: Metric) {
   const client = await getClient();
   await getMetricsCollection(client).insertOne(metric);
 }
 
-export const createMqttCollector = (metricAnalyzer: MetricAnalyzer) => {
-  const client = mqtt.connect(config.mqtt_url);
+export interface MqttCollectorConfig {
+  url: string;
+  dataTopic: string;
+  authToken: string;
+}
+
+export const createMqttCollector = (config: MqttCollectorConfig, metricAnalyzer: MetricAnalyzer) => {
+  const client = mqtt.connect(config.url);
 
   client.on('connect', () => {
-    client.subscribe(config.mqtt_data_topic, (err) => {
+    client.subscribe(config.dataTopic, (err) => {
       if (err) {
         console.error(err);
         return;
@@ -21,11 +26,11 @@ export const createMqttCollector = (metricAnalyzer: MetricAnalyzer) => {
     });
   });
   client.on('message', async (topic: string, message: Buffer) => {
-    if (topic !== config.mqtt_data_topic) {
+    if (topic !== config.dataTopic) {
       return;
     }
     const json: any = JSON.parse(message.toString());
-    if (json.token !== config.server_auth_token) {
+    if (json.token !== config.authToken) {
       console.log('Unauthorized message received');
       return;
     }

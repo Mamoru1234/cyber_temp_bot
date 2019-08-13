@@ -1,36 +1,50 @@
 import {Metric} from './Metric';
 import {MetricQueue} from './MetricQueue';
 import { sumBy, last } from 'lodash';
-import EventEmitter = NodeJS.EventEmitter;
-
-const config = require('../config.json');
-
-const NOTIFY_PERIOD = 1000 * 60 * 60 * 8;
+import { EventEmitter } from 'events';
 
 export interface AnomalyEvent {
   temp: number;
 }
 
+export interface MetricAnalyzerConfig {
+  tempThreshold: number;
+  minNotifyHour: number;
+  maxNotifyHour: number;
+  minQueueSize: number;
+  queueDuration: number;
+}
+
 export class MetricAnalyzer {
   public static ANOMALY_EVENT = 'ANOMALY_EVENT';
-  public events = new EventEmitter();
+  public readonly events = new EventEmitter();
 
   private _lastNotification = 0;
-  private _metrics = new MetricQueue(120000);
+  private readonly _metrics: MetricQueue;
+  private readonly _period: number;
 
-  constructor() {
+  constructor(
+    private readonly _config: MetricAnalyzerConfig
+  ) {
+    this._metrics = new MetricQueue(_config.queueDuration);
+    this._period = (_config.maxNotifyHour - _config.minNotifyHour) * 1000 * 60 * 60;
   }
 
   private isAbnormal(): boolean {
-    if (this._metrics.getValues().length === 0) {
+    if (this._metrics.getValues().length < this._config.minQueueSize) {
       return false;
     }
     const averageTemp = sumBy(this._metrics.getValues(), 'temp') / this._metrics.getValues().length;
-    return averageTemp > config.temp_threshold;
+    return averageTemp > this._config.tempThreshold;
   }
 
   private notifyUsers() {
-    if ((Date.now() - this._lastNotification) < NOTIFY_PERIOD) {
+    const curTime = new Date();
+    if ((curTime.getTime() - this._lastNotification) < this._period) {
+      return;
+    }
+    const utcHours = curTime.getUTCHours();
+    if (utcHours < this._config.minNotifyHour || utcHours > this._config.maxNotifyHour) {
       return;
     }
     const averageTemp = sumBy(this._metrics.getValues(), 'temp') / this._metrics.getValues().length;
