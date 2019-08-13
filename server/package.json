@@ -5,8 +5,8 @@
   "main": "index.js",
   "scripts": {
     "compile": "rm -rf build/ && tsc -p .",
-    "build": "docker build -t alexeigontarcyber/cyber_bot:0.9.4 .",
-    "push": "docker push alexeigontarcyber/cyber_bot:0.9.4",
+    "build": "docker build -t alexeigontarcyber/cyber_bot:0.9.5 .",
+    "push": "docker push alexeigontarcyber/cyber_bot:0.9.5",
     "start": "ts-node src/Main.ts"
   },
   "keywords": [],

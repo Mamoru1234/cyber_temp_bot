@@ -53,17 +53,21 @@ export function getBot(token: string, pass: string) {
       session.sendMessageSync('Даров братан, я не люблю шептать');
     }));
     session.registerHandler(new BotChatMessageHandler(/\/ask/, async () => {
+      console.log(`Asking bot ${session.getSessionId()}`);
       const auth = await session.getValue('auth');
+      console.log(`Auth: ${session.getSessionId()} ${auth}`);
       if (!auth) {
         session.sendMessageSync('Сначала деньги потом стулья. Сначала пароль потом красота.');
         showAuthBanner(session, pass);
         return;
       }
       const client = await getClient();
+      console.log(`Client: ${session.getSessionId()}`);
       const metrics = await getMetricsCollection(client).find<Metric>()
         .sort({ timestamp: -1 })
         .limit(1)
         .toArray();
+      console.log(`Metrics: ${session.getSessionId()} ${JSON.stringify(metrics, null, 2)}`);
       if (metrics.length === 0) {
         session.sendMessageSync('Ниче сказать не могу, стукачи не настукали');
         return;
