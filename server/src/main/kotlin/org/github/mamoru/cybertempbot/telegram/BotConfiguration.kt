@@ -1,19 +1,19 @@
 package org.github.mamoru.cybertempbot.telegram
 
 import com.pengrad.telegrambot.TelegramBot
-import com.pengrad.telegrambot.model.Update
+import org.github.mamoru.cybertempbot.telegram.properties.TelegramBotProperties
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 
 @Configuration
-class BotConfiguration {
+class BotConfiguration(private val props: TelegramBotProperties) {
     @Bean
     fun tgBot(): TelegramBot {
-        return TelegramBot("")
+        return TelegramBot(props.token)
     }
 
     @Bean
-    fun tgSessionManager(bot: TelegramBot, tgSessionFactory: TgSessionFactory): TgSessionManager {
-        return TgSessionManager(bot, tgSessionFactory)
+    fun tgSessionManager(bot: TelegramBot): TgSessionManager {
+        return TgSessionManager(bot)
     }
 }
