@@ -2,6 +2,7 @@ package org.github.mamoru.cybertempbot.telegram
 
 import mu.KotlinLogging
 import org.github.mamoru.cybertempbot.telegram.annotation.RegExpTgHandler
+import org.github.mamoru.cybertempbot.telegram.annotation.TgCommandHandler
 import org.github.mamoru.cybertempbot.telegram.annotation.UnknownTgHandler
 import org.springframework.beans.factory.config.BeanPostProcessor
 import org.springframework.stereotype.Service
@@ -18,8 +19,8 @@ class TgHandlerProcessor(private val tgSessionManager: TgSessionManager): BeanPo
             val unknownTgMessageHandler = method.findAnnotation<UnknownTgHandler>()
             if (unknownTgMessageHandler != null) {
                 logger.info("Detected unknown handler ${bean.javaClass.name} ${method.name}")
-                tgSessionManager.registerUnknownHandler { session, update ->
-                    method.call(bean, session, update.message())
+                tgSessionManager.registerUnknownHandler { session, message ->
+                    method.call(bean, session, message)
                 }
             }
             val regExpTgMessageHandler = method.findAnnotation<RegExpTgHandler>()
@@ -30,6 +31,13 @@ class TgHandlerProcessor(private val tgSessionManager: TgSessionManager): BeanPo
                     method.call(bean, session, message)
                 }
                 tgSessionManager.registerHandler(handler)
+            }
+            val commandMessageHandler = method.findAnnotation<TgCommandHandler>()
+            if (commandMessageHandler != null) {
+                logger.info("Command handler ${commandMessageHandler.command} ${bean.javaClass.name} ${method.name}")
+                tgSessionManager.registerCommand(commandMessageHandler.command) {
+                    session, message -> method.call(bean, session, message)
+                }
             }
         }
         return super.postProcessAfterInitialization(bean, beanName)

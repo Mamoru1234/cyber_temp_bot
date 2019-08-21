@@ -9,6 +9,7 @@ repositories {
 }
 
 dependencies {
+    compile 'com.google.guava:guava:28.0-jre'
     compile 'io.github.microutils:kotlin-logging:1.7.6'
     compile "org.jetbrains.kotlin:kotlin-stdlib-jdk8"
     compile "org.jetbrains.kotlin:kotlin-reflect"

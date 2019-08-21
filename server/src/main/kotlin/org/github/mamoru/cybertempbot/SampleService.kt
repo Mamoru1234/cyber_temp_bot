@@ -3,6 +3,7 @@ package org.github.mamoru.cybertempbot
 import com.pengrad.telegrambot.model.Message
 import org.github.mamoru.cybertempbot.telegram.TgSession
 import org.github.mamoru.cybertempbot.telegram.annotation.RegExpTgHandler
+import org.github.mamoru.cybertempbot.telegram.annotation.TgCommandHandler
 import org.github.mamoru.cybertempbot.telegram.annotation.UnknownTgHandler
 import org.springframework.stereotype.Service
 
@@ -16,5 +17,10 @@ class SampleService {
     @RegExpTgHandler("/start")
     fun start(session: TgSession, message: Message) {
         session.sendText("Start ${message.text()}")
+    }
+
+    @TgCommandHandler("start")
+    fun command(session: TgSession, message: Message) {
+        session.sendText("Start command")
     }
 }

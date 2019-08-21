@@ -11,9 +11,4 @@ class BotConfiguration(private val props: TelegramBotProperties) {
     fun tgBot(): TelegramBot {
         return TelegramBot(props.token)
     }
-
-    @Bean
-    fun tgSessionManager(bot: TelegramBot): TgSessionManager {
-        return TgSessionManager(bot)
-    }
 }
