@@ -8,7 +8,8 @@ import org.springframework.stereotype.Component
 class TgMessageParser {
     fun getCommands(message: Message): List<String> {
         val messageText = message.text()
-        return message.entities()
+        val entities = message.entities() ?: return emptyList()
+        return entities
                 .filter { it.type() == MessageEntity.Type.bot_command }
                 .map { messageText.substring(it.offset() + 1, it.offset() + it.length()) }
     }
