@@ -5,6 +5,7 @@ import com.pengrad.telegrambot.model.Message
 import com.pengrad.telegrambot.model.Update
 import org.springframework.stereotype.Component
 import java.util.concurrent.Executors
+import javax.annotation.PreDestroy
 
 typealias SimpleMessageHandler = (session: TgSession, message: Message) -> Unit
 
@@ -79,5 +80,16 @@ class TgSessionManager(
 
     fun registerHandler(handler: TgMessageHandler) {
         handlers.add(handler)
+    }
+
+    fun executeAll(task: (session: TgSession) -> Unit) {
+        sessions.forEach {
+            (_, session) -> task(session)
+        }
+    }
+
+    @PreDestroy
+    fun destroy() {
+        executor.shutdown()
     }
 }

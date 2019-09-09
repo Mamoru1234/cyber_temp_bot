@@ -2,19 +2,26 @@ package org.github.mamoru.cybertempbot
 
 import com.pengrad.telegrambot.model.Message
 import mu.KotlinLogging
+import org.github.mamoru.cybertempbot.config.CyberTempBotProps
 import org.github.mamoru.cybertempbot.dao.SessionContextDao
 import org.github.mamoru.cybertempbot.entity.Metric
-import org.github.mamoru.cybertempbot.entity.SessionContext
 import org.github.mamoru.cybertempbot.entity.SessionState
+import org.github.mamoru.cybertempbot.ext.getContext
+import org.github.mamoru.cybertempbot.ext.isAuthenticated
 import org.github.mamoru.cybertempbot.telegram.TgSession
 import org.github.mamoru.cybertempbot.telegram.annotation.TgCommandHandler
 import org.github.mamoru.cybertempbot.telegram.annotation.UnknownTgHandler
 import org.springframework.stereotype.Service
+import java.time.Instant
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 
-val AUTHENTICATED_STATES = arrayOf(SessionState.AUTHENTICATED)
+val LOCAL_ZONE_ID: ZoneId = ZoneId.of("Europe/Kiev")
+val LOCAL_DATE_FORMATTER: DateTimeFormatter = DateTimeFormatter.RFC_1123_DATE_TIME.withZone(LOCAL_ZONE_ID)
 
 @Service
 class SampleService(
+        private val cyberTempBotProps: CyberTempBotProps,
         private val sessionContextDao: SessionContextDao,
         private val metricAnalyzer: MetricAnalyzer
 ) {
@@ -22,9 +29,13 @@ class SampleService(
 
     @UnknownTgHandler
     fun unknownCommand(session: TgSession, message: Message) {
-        val context = sessionContextDao.getContext(session.sessionId)
+        val context = session.getContext(sessionContextDao)
         if (context.state != SessionState.AUTH_ASKED) {
             session.sendText("Вот хз че ответить")
+            return
+        }
+        if (message.text() != cyberTempBotProps.botAuthToken) {
+            session.sendText("Чет не такой парольчик фрайерок")
             return
         }
         context.state = SessionState.AUTHENTICATED
@@ -34,10 +45,9 @@ class SampleService(
 
     @TgCommandHandler("start")
     fun start(session: TgSession, message: Message) {
-        val context = sessionContextDao.getContext(session.sessionId)
-        if (!isAuthenticated(context)) {
+        if (!session.isAuthenticated(sessionContextDao)) {
             session.sendText("Вечер в хату")
-            showAuthBanner(context, session)
+            showAuthBanner(session)
             return
         }
         session.sendText("Ну шо го дела делать")
@@ -45,10 +55,9 @@ class SampleService(
 
     @TgCommandHandler("ask")
     fun askCommand(session: TgSession, message: Message) {
-        val context = sessionContextDao.getContext(session.sessionId)
-        if (!isAuthenticated(context)) {
+        if (!session.isAuthenticated(sessionContextDao)) {
             session.sendText("Сначала деньги потом стулья. Сначала пароль потом красота.")
-            showAuthBanner(context, session)
+            showAuthBanner(session)
             return
         }
         val metric = metricAnalyzer.getLastMetric()
@@ -59,7 +68,8 @@ class SampleService(
         session.sendText(formatMetric(metric))
     }
 
-    private fun showAuthBanner(context: SessionContext, session: TgSession) {
+    private fun showAuthBanner(session: TgSession) {
+        val context = session.getContext(sessionContextDao)
         if (context.state != SessionState.AUTH_ASKED) {
             context.state = SessionState.AUTH_ASKED
             sessionContextDao.saveContext(session.sessionId, context)
@@ -68,13 +78,14 @@ class SampleService(
     }
 
     private fun formatMetric(metric: Metric): String {
+        val time = Instant.ofEpochMilli(metric.timestamp.toLong())
+                .atZone(LOCAL_ZONE_ID)
+                .format(LOCAL_DATE_FORMATTER)
         return """
 Стукачи настукали следующий расклад:
 * Температура: ${metric.temp}
 * Влажность: ${metric.humidity}
+Время стука $time
 """
     }
-
-    private fun isAuthenticated(sessionContext: SessionContext): Boolean = AUTHENTICATED_STATES
-            .contains(sessionContext.state)
 }
